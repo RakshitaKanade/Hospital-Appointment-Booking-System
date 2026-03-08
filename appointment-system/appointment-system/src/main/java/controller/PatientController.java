@@ -2,6 +2,8 @@ package com.hospital.appointment_system.controller;
 
 import com.hospital.appointment_system.entity.Patient;
 import com.hospital.appointment_system.repository.PatientRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,39 +18,48 @@ public class PatientController {
         this.patientRepository = patientRepository;
     }
 
-    // ✅ CREATE
     @PostMapping
-    public Patient createPatient(@RequestBody Patient patient) {
-        return patientRepository.save(patient);
+    public ResponseEntity<?> createPatient(@RequestBody Patient patient) {
+        if (patient.getName() == null || patient.getName().isBlank()) {
+            return ResponseEntity.badRequest().body("Patient name is required");
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(patientRepository.save(patient));
     }
 
-    // ✅ GET ALL
     @GetMapping
-    public List<Patient> getAllPatients() {
-        return patientRepository.findAll();
+    public ResponseEntity<List<Patient>> getAllPatients() {
+        return ResponseEntity.ok(patientRepository.findAll());
     }
 
-    // ✅ GET BY ID
     @GetMapping("/{id}")
-    public Patient getPatientById(@PathVariable Long id) {
-        return patientRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Patient not found"));
+    public ResponseEntity<?> getPatientById(@PathVariable Long id) {
+        Patient patient = patientRepository.findById(id).orElse(null);
+        if (patient == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Patient not found");
+        return ResponseEntity.ok(patient);
     }
 
-    // ✅ UPDATE
     @PutMapping("/{id}")
-    public Patient updatePatient(@PathVariable Long id, @RequestBody Patient updatedPatient) {
-        return patientRepository.findById(id).map(patient -> {
-            patient.setName(updatedPatient.getName());
-            patient.setEmail(updatedPatient.getEmail());
-            patient.setPhone(updatedPatient.getPhone());
-            return patientRepository.save(patient);
-        }).orElseThrow(() -> new RuntimeException("Patient not found"));
+    public ResponseEntity<?> updatePatient(@PathVariable Long id, @RequestBody Patient updatedPatient) {
+        Patient patient = patientRepository.findById(id).orElse(null);
+        if (patient == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Patient not found");
+        patient.setName(updatedPatient.getName());
+        patient.setEmail(updatedPatient.getEmail());
+        patient.setPhone(updatedPatient.getPhone());
+        return ResponseEntity.ok(patientRepository.save(patient));
     }
 
-    // ✅ DELETE
     @DeleteMapping("/{id}")
-    public void deletePatient(@PathVariable Long id) {
+    public ResponseEntity<String> deletePatient(@PathVariable Long id) {
+        if (!patientRepository.existsById(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Patient not found");
+        }
         patientRepository.deleteById(id);
+        return ResponseEntity.ok("Patient deleted successfully");
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Something went wrong: " + ex.getMessage());
     }
 }

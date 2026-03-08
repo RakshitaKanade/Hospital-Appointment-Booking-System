@@ -2,6 +2,8 @@ package com.hospital.appointment_system.controller;
 
 import com.hospital.appointment_system.entity.Doctor;
 import com.hospital.appointment_system.repository.DoctorRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,39 +18,48 @@ public class DoctorController {
         this.doctorRepository = doctorRepository;
     }
 
-    // ✅ CREATE
     @PostMapping
-    public Doctor createDoctor(@RequestBody Doctor doctor) {
-        return doctorRepository.save(doctor);
+    public ResponseEntity<?> createDoctor(@RequestBody Doctor doctor) {
+        if (doctor.getName() == null || doctor.getName().isBlank()) {
+            return ResponseEntity.badRequest().body("Doctor name is required");
+        }
+        return ResponseEntity.status(HttpStatus.CREATED).body(doctorRepository.save(doctor));
     }
 
-    // ✅ GET ALL
     @GetMapping
-    public List<Doctor> getAllDoctors() {
-        return doctorRepository.findAll();
+    public ResponseEntity<List<Doctor>> getAllDoctors() {
+        return ResponseEntity.ok(doctorRepository.findAll());
     }
 
-    // ✅ GET BY ID
     @GetMapping("/{id}")
-    public Doctor getDoctorById(@PathVariable Long id) {
-        return doctorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Doctor not found"));
+    public ResponseEntity<?> getDoctorById(@PathVariable Long id) {
+        Doctor doctor = doctorRepository.findById(id).orElse(null);
+        if (doctor == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Doctor not found");
+        return ResponseEntity.ok(doctor);
     }
 
-    // ✅ UPDATE
     @PutMapping("/{id}")
-    public Doctor updateDoctor(@PathVariable Long id, @RequestBody Doctor updatedDoctor) {
-        return doctorRepository.findById(id).map(doctor -> {
-            doctor.setName(updatedDoctor.getName());
-            doctor.setSpecialization(updatedDoctor.getSpecialization());
-            doctor.setEmail(updatedDoctor.getEmail());
-            return doctorRepository.save(doctor);
-        }).orElseThrow(() -> new RuntimeException("Doctor not found"));
+    public ResponseEntity<?> updateDoctor(@PathVariable Long id, @RequestBody Doctor updatedDoctor) {
+        Doctor doctor = doctorRepository.findById(id).orElse(null);
+        if (doctor == null) return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Doctor not found");
+        doctor.setName(updatedDoctor.getName());
+        doctor.setSpecialization(updatedDoctor.getSpecialization());
+        doctor.setEmail(updatedDoctor.getEmail());
+        return ResponseEntity.ok(doctorRepository.save(doctor));
     }
 
-    // ✅ DELETE
     @DeleteMapping("/{id}")
-    public void deleteDoctor(@PathVariable Long id) {
+    public ResponseEntity<String> deleteDoctor(@PathVariable Long id) {
+        if (!doctorRepository.existsById(id)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Doctor not found");
+        }
         doctorRepository.deleteById(id);
+        return ResponseEntity.ok("Doctor deleted successfully");
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> handleException(Exception ex) {
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Something went wrong: " + ex.getMessage());
     }
 }
